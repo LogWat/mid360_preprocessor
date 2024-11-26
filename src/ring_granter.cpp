@@ -5,12 +5,12 @@ namespace mid360_preprocessor {
 RingGranter::RingGranter(const rclcpp::NodeOptions & options)
     : Node("ring_granter", options)
 {
-    this->declare_parameter<std::string>("sub_pcd_topic", "livox/concatenated/pointcloud");
-    this->declare_parameter<std::string>("pub_pcd_topic", "livox/concatenated/ring_granted/pointcloud");
+    this->declare_parameter<std::string>("input_topic", "livox/concatenated/pointcloud");
+    this->declare_parameter<std::string>("output_topic", "livox/concatenated/ring_granted/pointcloud");
     this->declare_parameter<int>("ring_num", 10);
     this->declare_parameter<bool>("timefield_overwrite", false);
-    this->get_parameter("sub_pcd_topic", sub_pcd_topic_);
-    this->get_parameter("pub_pcd_topic", pub_pcd_topic_);
+    this->get_parameter("input_topic", sub_pcd_topic_);
+    this->get_parameter("output_topic", pub_pcd_topic_);
     this->get_parameter("ring_num", ring_num_);
     this->get_parameter("timefield_overwrite", timefield_overwrite_);
 
@@ -89,7 +89,7 @@ void RingGranter::grant_ring_field(
 }
 
 void RingGranter::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_pcd) {
-    RCLCPP_INFO(this->get_logger(), "RingGranter Received PointCloud Address: %p", (void *)ros_pcd.get());
+    RCLCPP_INFO(this->get_logger(), "\033[1;36mRingGranter Received PointCloud Address: %p\033[0m", (void *)ros_pcd.get());
     auto pointcloud_out = std::make_shared<sensor_msgs::msg::PointCloud2>();
     grant_ring_field(ros_pcd, pointcloud_out);
     pub_pcd_->publish(*pointcloud_out);
