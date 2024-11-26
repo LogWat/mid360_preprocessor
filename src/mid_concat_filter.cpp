@@ -134,7 +134,7 @@ void MidConcatFilter::sync_callback(
     );
     pointcloud_out->header = ros_pcd1->header;
     pointcloud_out->header.frame_id = output_frame_id_;
-    RCLCPP_INFO(this->get_logger(), "Concatenated PointCloud Address: %p", (void *)pointcloud_out.get());
+    RCLCPP_INFO(this->get_logger(), "\033[1;35mConcatenator Published PointCloud Address: %p\033[0m", (void *)pointcloud_out.get());
     pub_pcd_->publish(*pointcloud_out);
 }
 
