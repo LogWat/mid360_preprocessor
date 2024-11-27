@@ -76,8 +76,8 @@ void MidConcatFilter::sync_callback(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr ros_pcd2
 ) {
     // memory address check
-    RCLCPP_INFO(this->get_logger(), "PointCloud1 Address: %p", (void *)ros_pcd1.get());
-    RCLCPP_INFO(this->get_logger(), "PointCloud2 Address: %p", (void *)ros_pcd2.get());
+    // RCLCPP_INFO(this->get_logger(), "PointCloud1 Address: %p", (void *)ros_pcd1.get());
+    // RCLCPP_INFO(this->get_logger(), "PointCloud2 Address: %p", (void *)ros_pcd2.get());
 
     if (!check_compatibility(ros_pcd1, ros_pcd2)) {
         RCLCPP_WARN(this->get_logger(), "PointCloud2 messages are not compatible.");
@@ -134,7 +134,7 @@ void MidConcatFilter::sync_callback(
     );
     pointcloud_out->header = ros_pcd1->header;
     pointcloud_out->header.frame_id = output_frame_id_;
-    RCLCPP_INFO(this->get_logger(), "Concatenated PointCloud Address: %p", (void *)pointcloud_out.get());
+    // RCLCPP_INFO(this->get_logger(), "\033[1;35mConcatenator Published PointCloud Address: %p\033[0m", (void *)pointcloud_out.get());
     pub_pcd_->publish(*pointcloud_out);
 }
 
