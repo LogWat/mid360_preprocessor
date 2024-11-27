@@ -89,7 +89,7 @@ void RingGranter::grant_ring_field(
 }
 
 void RingGranter::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_pcd) {
-    RCLCPP_INFO(this->get_logger(), "\033[1;36mRingGranter Received PointCloud Address: %p\033[0m", (void *)ros_pcd.get());
+    // RCLCPP_INFO(this->get_logger(), "\033[1;36mRingGranter Received PointCloud Address: %p\033[0m", (void *)ros_pcd.get());
     auto pointcloud_out = std::make_shared<sensor_msgs::msg::PointCloud2>();
     grant_ring_field(ros_pcd, pointcloud_out);
     pub_pcd_->publish(*pointcloud_out);
