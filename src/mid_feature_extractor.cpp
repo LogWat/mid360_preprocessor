@@ -37,6 +37,13 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
     this->get_parameter("theta_bins", theta_bins_);
     this->get_parameter("phi_bins", phi_bins_);
     this->get_parameter("rho_bins", rho_bins_);
+    // Height Threshold Filter Params
+    this->declare_parameter<bool>("use_height_threshold_filter", false);
+    this->declare_parameter<float>("height_max", 0.0);
+    this->declare_parameter<float>("height_min", 0.0);
+    this->get_parameter("use_height_threshold_filter", use_height_threshold_filter_);
+    this->get_parameter("height_max", height_max_);
+    this->get_parameter("height_min", height_min_);
 
     sub_pcd_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         sub_pcd_topic_,
@@ -47,6 +54,7 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
     std::string ivsddf_topic = pub_pcd_topic_head_ + "/intensity_voxel_stddev_filtered/pointcloud";
     std::string intensity_filtered_topic = pub_pcd_topic_head_ + "/intensity_filtered/pointcloud";
     std::string hough_transformed_topic = pub_pcd_topic_head_ + "/hough_transform/pointcloud";
+    std::string height_filtered_topic = pub_pcd_topic_head_ + "/height_filtered/pointcloud";
     pcd_pub_vec_.push_back(this->create_publisher<sensor_msgs::msg::PointCloud2>(
         ivsddf_topic,
         rclcpp::QoS(5).best_effort()
@@ -57,6 +65,10 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
     ));
     pcd_pub_vec_.push_back(this->create_publisher<sensor_msgs::msg::PointCloud2>(
         hough_transformed_topic,
+        rclcpp::QoS(5).best_effort()
+    ));
+    pcd_pub_vec_.push_back(this->create_publisher<sensor_msgs::msg::PointCloud2>(
+        height_filtered_topic,
         rclcpp::QoS(5).best_effort()
     ));
     
@@ -74,6 +86,15 @@ void MidFeatureExtractor::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_
         ros_line_points.header.frame_id = ros_pcd->header.frame_id;
         RCLCPP_INFO(this->get_logger(), "\033[1;32mHough Transformed Published PointCloud Address: %p\033[0m", (void *)line_points.get());
         pcd_pub_vec_[2]->publish(ros_line_points);
+    }
+    if (use_height_threshold_filter_) {
+        filter_by_z_range(cloud, height_min_, height_max_);
+        sensor_msgs::msg::PointCloud2 ros_filtered;
+        pcl::toROSMsg(*cloud, ros_filtered);
+        ros_filtered.header = ros_pcd->header;
+        ros_filtered.header.frame_id = ros_pcd->header.frame_id;
+        RCLCPP_INFO(this->get_logger(), "\033[1;32mHeight Threshold Filtered Published PointCloud Address: %p\033[0m", (void *)cloud.get());
+        pcd_pub_vec_[3]->publish(ros_filtered);
     }
 }
 

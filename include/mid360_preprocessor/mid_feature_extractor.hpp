@@ -65,7 +65,7 @@ private:
     ) {
         auto inliers = std::make_shared<pcl::PointIndices>();
         for (size_t i = 0; i < cloud->points.size(); i++) {
-            if (cloud->points[i].z < z_min || cloud->points[i].z > z_max) inliers->indices.push_back(i);
+            if (cloud->points[i].z > z_min && cloud->points[i].z < z_max) inliers->indices.push_back(i);
         }
         remove_indices(cloud, inliers);
     }
@@ -201,6 +201,10 @@ private:
     bool use_hough_transform_;
     int theta_bins_, phi_bins_, rho_bins_;
     float distance_threshold_, hough_threshold_ratio_;
+
+    // height-threshold filter
+    bool use_height_threshold_filter_;
+    float height_max_, height_min_;
     // ==========================================================================
 };
 
