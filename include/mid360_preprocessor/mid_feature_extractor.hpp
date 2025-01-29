@@ -91,7 +91,8 @@ private:
 
     // Intensity Voxel Standard Deviation Filter -------------------------------
     void filter_by_intensity_voxel_stddev(
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+        const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered,
         const float voxel_size,
         const float stddev_threshold
     );
@@ -99,8 +100,8 @@ private:
     void retrieve_voxel_stddev(
         pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud,
         const float voxel_size,
-        std::map<std::tuple<float, float, float>, float>& voxel_stddev_map,             // key: voxel.xyz, value: voxel's intensity stddev
-        std::map<std::tuple<float, float, float>, std::vector<int>>& voxel_indices_map  // key: voxel.xyz, value: point indices in the voxel
+        std::map<std::tuple<float, float, float>, float> &voxel_stddev_map,
+        std::map<std::tuple<float, float, float>, std::vector<int>> &voxel_indices_map
     );
     //--------------------------------------------------------------------------
 
@@ -192,6 +193,7 @@ private:
     bool use_intensity_voxel_stddev_filter_;
     float intensity_voxel_size_;
     float intensity_stddev_threshold_;
+    float intensity_cofficient_;
 
     // Intensity Filter
     bool use_intensity_filter_, plot_intensity_;
@@ -205,6 +207,11 @@ private:
     // height-threshold filter
     bool use_height_threshold_filter_;
     float height_max_, height_min_;
+
+
+    // DEBUG
+    bool debug_verbose_ = false;
+
     // ==========================================================================
 };
 

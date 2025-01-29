@@ -11,18 +11,20 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
     this->get_parameter("input_topic", sub_pcd_topic_);
     this->get_parameter("output_topic_head", pub_pcd_topic_head_);
     // Intensity Voxel Standard Deviation Filter Params
-    this->declare_parameter<float>("intensity_voxel_size", 0.1);
-    this->declare_parameter<float>("intensity_stddev_threshold", 0.0);
+    this->declare_parameter<float>("intensity_voxel_size", 0.5);
+    this->declare_parameter<float>("intensity_stddev_threshold", 15.0);
+    this->declare_parameter<float>("intensity_cofficient", 1.0);
     this->declare_parameter<bool>("use_intensity_voxel_stddev_filter", false);
     this->get_parameter("intensity_voxel_size", intensity_voxel_size_);
     this->get_parameter("intensity_stddev_threshold", intensity_stddev_threshold_);
-    this->get_parameter("use_intensity_filter", use_intensity_filter_);
+    this->get_parameter("intensity_cofficient", intensity_cofficient_);
+    this->get_parameter("use_intensity_voxel_stddev_filter", use_intensity_voxel_stddev_filter_);
     // Intensity Filter Params
     this->declare_parameter<float>("intensity_threshold", 0.0);
     this->declare_parameter<bool>("use_intensity_filter", false);
     this->declare_parameter<bool>("plot_intensity", false);
     this->get_parameter("intensity_threshold", intensity_threshold_);
-    this->get_parameter("use_intensity_voxel_stddev_filter", use_intensity_voxel_stddev_filter_);
+    this->get_parameter("use_intensity_filter", use_intensity_filter_);
     this->get_parameter("plot_intensity", plot_intensity_);
     // Hough Transform Params
     this->declare_parameter<bool>("use_hough_transform", false);
@@ -44,6 +46,9 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
     this->get_parameter("use_height_threshold_filter", use_height_threshold_filter_);
     this->get_parameter("height_max", height_max_);
     this->get_parameter("height_min", height_min_);
+    // DEBUG
+    this->declare_parameter<bool>("debug_verbose", false);
+    this->get_parameter("debug_verbose", debug_verbose_);
 
     sub_pcd_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         sub_pcd_topic_,
@@ -75,7 +80,7 @@ MidFeatureExtractor::MidFeatureExtractor(const rclcpp::NodeOptions &options)
 }
 
 void MidFeatureExtractor::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_pcd) {
-    RCLCPP_INFO(this->get_logger(), "\033[1;32mFeature Extractor Received PointCloud Address: %p\033[0m", (void *)ros_pcd.get());
+    if (debug_verbose_) RCLCPP_INFO(this->get_logger(), "\033[1;32mFeature Extractor Received PointCloud Address: %p\033[0m", (void *)ros_pcd.get());
     auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     pcl::fromROSMsg(*ros_pcd, *cloud);
     if (use_hough_transform_) {
@@ -84,7 +89,7 @@ void MidFeatureExtractor::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_
         pcl::toROSMsg(*line_points, ros_line_points);
         ros_line_points.header = ros_pcd->header;
         ros_line_points.header.frame_id = ros_pcd->header.frame_id;
-        RCLCPP_INFO(this->get_logger(), "\033[1;32mHough Transformed Published PointCloud Address: %p\033[0m", (void *)line_points.get());
+        if (debug_verbose_) RCLCPP_INFO(this->get_logger(), "\033[1;32mHough Transformed Published PointCloud Address: %p\033[0m", (void *)line_points.get());
         pcd_pub_vec_[2]->publish(ros_line_points);
     }
     if (use_height_threshold_filter_) {
@@ -93,12 +98,85 @@ void MidFeatureExtractor::callback(sensor_msgs::msg::PointCloud2::UniquePtr ros_
         pcl::toROSMsg(*cloud, ros_filtered);
         ros_filtered.header = ros_pcd->header;
         ros_filtered.header.frame_id = ros_pcd->header.frame_id;
-        RCLCPP_INFO(this->get_logger(), "\033[1;32mHeight Threshold Filtered Published PointCloud Address: %p\033[0m", (void *)cloud.get());
+        if (debug_verbose_) RCLCPP_INFO(this->get_logger(), "\033[1;32mHeight Threshold Filtered Published PointCloud Address: %p\033[0m", (void *)cloud.get());
         pcd_pub_vec_[3]->publish(ros_filtered);
+    }
+    if (use_intensity_voxel_stddev_filter_) {
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZI>());
+        filter_by_intensity_voxel_stddev(cloud, cloud_filtered, intensity_voxel_size_, intensity_stddev_threshold_);
+        sensor_msgs::msg::PointCloud2 ros_filtered;
+        pcl::toROSMsg(*cloud_filtered, ros_filtered);
+        ros_filtered.header = ros_pcd->header;
+        ros_filtered.header.frame_id = ros_pcd->header.frame_id;
+        if (debug_verbose_) RCLCPP_INFO(this->get_logger(), "\033[1;32mIntensity Voxel Stddev Filtered Published PointCloud Address: %p\033[0m", (void *)cloud.get());
+        pcd_pub_vec_[0]->publish(ros_filtered);
     }
 }
 
 // .*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*
+
+// Intensity Voxel Stardard Deviation Filter --------------------------------
+void MidFeatureExtractor::filter_by_intensity_voxel_stddev(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered,
+    const float voxel_size,
+    const float stddev_threshold
+) {
+    std::map<std::tuple<float, float, float>, float> voxel_stddev_map;
+    std::map<std::tuple<float, float, float>, std::vector<int>> voxel_indices_map;
+    retrieve_voxel_stddev(cloud, voxel_size, voxel_stddev_map, voxel_indices_map);
+    for (auto &[point, stddev] : voxel_stddev_map) {
+        for (const auto &idx : voxel_indices_map[point]) {
+            auto new_intensity = std::min(255.0f, stddev);
+            cloud->points[idx].intensity = new_intensity;
+            if (new_intensity < stddev_threshold) {
+                auto distance = sqrt(cloud->points[idx].x * cloud->points[idx].x +
+                                    cloud->points[idx].y * cloud->points[idx].y +
+                                    cloud->points[idx].z * cloud->points[idx].z);
+                if (distance < 1.5) continue;                           // 距離が近すぎる点群を除去
+                cloud_filtered->points.push_back(cloud->points[idx]);
+            }
+        }
+    }
+    cloud_filtered->header = cloud->header;
+    cloud_filtered->height = cloud->height;
+    cloud_filtered->is_dense = cloud->is_dense;
+    cloud_filtered->width = cloud_filtered->points.size();
+}
+
+void MidFeatureExtractor::retrieve_voxel_stddev(
+    pcl::PointCloud<pcl::PointXYZI>::ConstPtr cloud,
+    const float voxel_size,
+    std::map<std::tuple<float, float, float>, float> &voxel_stddev_map,
+    std::map<std::tuple<float, float, float>, std::vector<int>> &voxel_indices_map
+) {
+    std::map<std::tuple<float, float, float>, std::vector<float>> voxel_intensity_map;
+    for (size_t i = 0; const auto &p : cloud->points) {
+        auto voxel_center = std::make_tuple(
+            voxel_size * floor(p.x / voxel_size),
+            voxel_size * floor(p.y / voxel_size),
+            voxel_size * floor(p.z / voxel_size)
+        );
+        float distance = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+        float intensity_calibrated = intensity_cofficient_ * p.intensity / (distance * distance);
+        voxel_intensity_map[voxel_center].push_back(intensity_calibrated);
+        voxel_indices_map[voxel_center].push_back(i);
+        i++;
+    }
+
+    for (auto &[point, intensities] : voxel_intensity_map) {
+        float sum = std::reduce(intensities.begin(), intensities.end());
+        float mean = sum / intensities.size();
+        float stddev = 0.0;
+        for (const auto &intensity : intensities) {
+            stddev += (intensity - mean) * (intensity - mean);
+        }
+        stddev = sqrt(stddev / intensities.size());
+        voxel_stddev_map[point] = stddev;
+    }
+}
+// --------------------------------------------------------------------------
+
 
 // Intensity Filter --------------------------------------------------------
 void MidFeatureExtractor::filter_by_intensity(
