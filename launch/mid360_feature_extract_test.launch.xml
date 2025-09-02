@@ -4,28 +4,32 @@
 
   <set_parameter name="use_sim_time" value="$(var use_sim_time)"/>
   <group>
-    <node_container pkg="rclcpp_components" exec="component_container_mt" name="livox_preprocess_container" namespace="" output="screen">
+    <node_container pkg="rclcpp_components" exec="component_container_mt" name="livox_preprocess_container" namespace="" output="log">
       <composable_node pkg="mid360_preprocessor" plugin="mid360_preprocessor::MidConcatFilter" name="mid_concat_filter" namespace="">
         <param name="livox1_topic" value="/livox/lidar_192_168_1_101"/>
         <param name="livox2_topic" value="/livox/lidar_192_168_1_102"/>
         <param name="livox1_frame" value="livox1_frame"/>
         <param name="livox2_frame" value="livox2_frame"/>
         <param name="output_topic" value="/livox/concatenated/pointcloud"/>
-        <param name="output_frame" value="virtual_livox_frame"/>
+        <param name="output_frame" value="livox_frame"/>
         <extra_arg name="use_intra_process_comms" value="true" />
       </composable_node>
       <composable_node pkg="mid360_preprocessor" plugin="mid360_preprocessor::MidFeatureExtractor" name="mid_feature_extractor" namespace="">
         <param name="input_topic" value="/livox/concatenated/pointcloud"/>
         <param name="output_topic_head" value="/livox/concatenated/feature_extracted"/>
-        <param name="use_hough_transform" value="true"/>
-        <param name="theta_bins" value="72"/>
-        <param name="phi_bins" value="36"/>
-        <param name="rho_bins" value="50"/>
+        <!-- <param name="use_height_threshold_filter" value="true"/>
+        <param name="height_min" value="-0.3"/>
+        <param name="height_max" value="1.5"/> -->
+        <param name="intensity_voxel_size" value="0.5"/>
+        <param name="intensity_stddev_threshold" value="15.0"/>
+        <param name="intensity_cofficient" value="10.0" />
+        <param name="use_intensity_voxel_stddev_filter" value="true"/>
         <extra_arg name="use_intra_process_comms" value="true" />
       </composable_node>
       <composable_node pkg="mid360_preprocessor" plugin="mid360_preprocessor::RingGranter" name="ring_granter" namespace="">
-        <param name="input_topic" value="/livox/concatenated/feature_extracted/hough_transform/pointcloud"/>
-        <param name="output_topic" value="/livox/concatenated/hough_transformed/pointcloud"/>
+        <!-- <param name="input_topic" value="/livox/concatenated/feature_extracted/height_filtered/pointcloud"/> -->
+        <param name="input_topic" value="/livox/concatenated/feature_extracted/intensity_voxel_stddev_filtered/pointcloud"/>
+        <!-- <param name="input_topic" value="/livox/concatenated/pointcloud"/> -->
         <param name="ring_num" value="10"/>
         <param name="timefield_overwrite" value="true"/>
         <extra_arg name="use_intra_process_comms" value="true" />
@@ -35,5 +39,5 @@
 
   <node pkg="tf2_ros" exec="static_transform_publisher" name="livoxtf1" output="screen" args="0.0 0.0 0.505 0.0 0.0 0.0 base_link livox1_frame" />
   <node pkg="tf2_ros" exec="static_transform_publisher" name="livoxtf2" output="screen" args="0.0 0.0 0.990 0.0 0.0 3.1415926 base_link livox2_frame" />
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="outputtf" output="screen" args="0.0 0.0 0.505 0.0 0.0 0.0 base_link virtual_livox_frame" />
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="outputtf" output="screen" args="0.0 0.0 0.505 0.0 0.0 0.0 base_link livox_frame" />
 </launch>
