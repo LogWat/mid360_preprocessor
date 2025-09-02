@@ -14,6 +14,7 @@
           <param name="output_frame" value="virtual_livox_frame"/>
           <extra_arg name="use_intra_process_comms" value="true" />
         </composable_node>
+      </node_container>
     </group>
 
   <node pkg="tf2_ros" exec="static_transform_publisher" name="livoxtf1" output="screen" args="0.0 0.0 0.505 0.0 0.0 0.0 base_link livox1_frame" />

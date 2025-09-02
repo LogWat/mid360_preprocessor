@@ -195,6 +195,8 @@ void MidFeatureExtractor::filter_by_intensity(
 // -------------------------------------------------------------------------
 
 // Hough Transform ---------------------------------------------------------
+// WIPWIP
+
 bool MidFeatureExtractor::is_local_maximum(
     const std::vector<int>& accumulator,
     const int accumulator_index,
